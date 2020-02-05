@@ -6,55 +6,63 @@
 */
 #include <Servo.h>
 
-const int BUTTON_PIN = 2;
-const int SERVO_PIN = 9;
-const int PAUSE_DURATION = 200;
-const int RUN_DURATION = 50;
+const int MODE_BUTTON_PIN = 2;
+const int PUSH_BUTTON_PIN = 3;
+const long DEBOUNCE = 200;  // the debounce time for the mode-switch button
 
-long triggeredAt = 0;  // timestamp of last mode switch
-long debounce = 200;   // the debounce time
+const int SERVO_PIN = 9;
+const int CR_SERVO_PIN = 10;
+
+const int DEFAULT_POSITION = 90;
+const int PERIOD = 100;
+const int MIN_POSITION = 60;
+const int MAX_POSITION = 120;
+
+long triggeredAt = 0;     // timestamp of last mode switch
+int angularPosition = 0;  // angular position of the shaft in degrees
 
 bool isOnRandomMode = false;
-
 Servo servo;
+Servo CRservo;
 
 void setup() {
-  servo.attach(SERVO_PIN);
-  pinMode(BUTTON_PIN, INPUT);
   Serial.begin(9600);
+  
+  servo.attach(SERVO_PIN); 
+  servo.write(DEFAULT_POSITION);
+
+  CRservo.attach(CR_SERVO_PIN); 
 }
 
 void randomMode() {
-  // Rotate forward at full speed
-  // for RUN_DURATION amount of time
-  servo.write(180);
-  delay(RUN_DURATION);
-  servo.write(90);
-
-  // Wait for PAUSE_DURATION amount of time
-  delay(PAUSE_DURATION);
-  
-  // Rotate forward at full speed
-  // for RUN_DURATION amount of time
-  servo.write(180);
-  delay(RUN_DURATION);
-  servo.write(90);
-
-  // Wait for PAUSE_DURATION amount of time
-  delay(PAUSE_DURATION);
+  angularPosition = random(MIN_POSITION, MAX_POSITION);
+  servo.write(angularPosition);
+  Serial.println(angularPosition);
+  delay(PERIOD);
 }
 
 void controlledMode() {
-  // Stop the rotation (shouldn't be necessary)
-  servo.write(90);
+  if (servo.read() != DEFAULT_POSITION) {
+    servo.write(DEFAULT_POSITION);
+    Serial.println(DEFAULT_POSITION);
+  }
+}
 
-  // Wait for PAUSE_DURATION amount of time
-  delay(PAUSE_DURATION * 3);
+void pushDice() {
+  Serial.println("pushDice()");
+  CRservo.write(180);
+  delay(PERIOD);
+  CRservo.write(90);
 }
 
 void loop() {
-  // Read the state of the pushbutton value:
-  if (digitalRead(BUTTON_PIN) == HIGH && (!triggeredAt || millis() - triggeredAt > debounce)) {
+  // Read the state of the push button value:
+  if (digitalRead(PUSH_BUTTON_PIN) == HIGH) {
+    pushDice();
+  }
+  
+  // Read the state of the mode-switch button value:
+  if (digitalRead(MODE_BUTTON_PIN) == HIGH && (!triggeredAt || millis() - triggeredAt > DEBOUNCE)) {
     triggeredAt = millis();
     
     // Switch mode
@@ -64,12 +72,8 @@ void loop() {
   }
 
   if (isOnRandomMode) {
-    Serial.println("Starting randomMode.");
     randomMode();
-    Serial.println("Finished randomMode.");
   } else {
-    Serial.println("Starting controlledMode.");
     controlledMode();
-    Serial.println("Finished controlledMode.");
   }
 }
