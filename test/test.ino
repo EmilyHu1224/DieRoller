@@ -13,6 +13,8 @@ const long DEBOUNCE = 200;  // the debounce time for the mode-switch button
 const int SERVO_PIN = 9;
 const int CR_SERVO_PIN = 10;
 
+const int CR_PERIOD = 1500;
+
 const int DEFAULT_POSITION = 90;
 const int PERIOD = 100;
 const int MIN_POSITION = 60;
@@ -28,7 +30,9 @@ Servo CRservo;
 void setup() {
   Serial.begin(9600);
   
-  servo.attach(SERVO_PIN); 
+  servo.attach(SERVO_PIN);
+  pinMode(PUSH_BUTTON_PIN, INPUT);
+  pinMode(MODE_BUTTON_PIN, INPUT);  
   servo.write(DEFAULT_POSITION);
 
   CRservo.attach(CR_SERVO_PIN); 
@@ -50,8 +54,8 @@ void controlledMode() {
 
 void pushDice() {
   Serial.println("pushDice()");
-  CRservo.write(180);
-  delay(PERIOD);
+  CRservo.write(0);
+  delay(CR_PERIOD);
   CRservo.write(90);
 }
 
