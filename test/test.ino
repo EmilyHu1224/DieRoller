@@ -20,12 +20,22 @@ const int PERIOD = 100;
 const int MIN_POSITION = 60;
 const int MAX_POSITION = 120;
 
-long triggeredAt = 0;     // timestamp of last mode switch
+long triggeredAt = 0;     // timestamp of the last mode switch
 int angularPosition = 0;  // angular position of the shaft in degrees
 
 bool isOnRandomMode = false;
 Servo servo;
 Servo CRservo;
+
+/*
+ * s0: idle
+ * -- button push --> activate
+ * --> s1: active
+ * -- been running for longer than CR_PERIOD --> deactivate
+ * --> s0
+ */
+int CRServoState = 0;     
+long activatedAt = 0;   // timestamp of the last activation
 
 void setup() {
   Serial.begin(9600);
@@ -52,18 +62,41 @@ void controlledMode() {
   }
 }
 
-void pushDice() {
-  Serial.println("pushDice()");
+void activateCRServo() {
+  Serial.println("activateCRServo()");
+  CRServoState = 1;
   CRservo.write(0);
-  delay(CR_PERIOD);
+  activatedAt = millis();
+}
+
+void deactivateCRServo() {
+  Serial.println("deactivateCRServo()");
+  CRServoState = 0;
   CRservo.write(90);
 }
 
-void loop() {
-  // Read the state of the push button value:
-  if (digitalRead(PUSH_BUTTON_PIN) == HIGH) {
-    pushDice();
+void CRServoStateMachine() {
+  switch(CRServoState) {
+    case 0:
+      // Read the state of the push button value:
+      if (digitalRead(PUSH_BUTTON_PIN) == HIGH) {
+        activateCRServo();
+      }
+      break;
+    case 1:
+      // Check if the CR servo has been running for longer than CR_PERIOD
+      if (millis() > activatedAt) {
+        deactivateCRServo();
+      }
+      break;
+    default:
+      Serial.println("Uh oh, unknown CRServo state: " + CRServoState);
   }
+  
+}
+
+void loop() {
+  CRServoStateMachine();
   
   // Read the state of the mode-switch button value:
   if (digitalRead(MODE_BUTTON_PIN) == HIGH && (!triggeredAt || millis() - triggeredAt > DEBOUNCE)) {
